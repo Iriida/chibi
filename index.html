@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+    <title>故纸舟·赤壁</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/style.css" />
+    <style>
+        /* 样式部分与之前完全相同，未作任何修改 */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        html, body {
+            height: 100%;
+        }
+        body {
+            background-color: #4a3e35;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: "LXGW WenKai", "霞鹜文楷", "标小篆", "KaiTi", "楷体", "华文楷体", serif;
+            padding: 1rem;
+        }
+        .game-container {
+            max-width: 820px;
+            width: 100%;
+            height: 95vh;
+            background-color: #f8f0e2;
+            background-image: linear-gradient(145deg, #f3e9d2 0%, #faf1e0 100%);
+            border-radius: 0;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5), 
+                        0 0 0 1px #b59d7a inset, 
+                        0 0 0 3px #7c5f42 inset;
+            padding: 1.5rem 1.5rem 0 1.5rem;
+            position: relative;
+            border: none;
+            isolation: isolate;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            display: flex;
+            flex-direction: column;
+        }
+        .mask {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(243, 234, 216, 0.15);
+            pointer-events: none;
+            z-index: 0;
+            border-radius: inherit;
+        }
+        .cover-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #2f2923;
+            background-image: linear-gradient(145deg, #4a4036 0%, #2f2923 100%);
+            box-shadow: 0 0 0 1px #b59d7a inset, 0 0 0 3px #7c5f42 inset;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 300;
+            transition: opacity 0.8s ease;
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .cover-screen.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .cover-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            color: #f0e5d2;
+            max-width: 80%;
+            animation: gentlePulse 3s infinite ease-in-out;
+        }
+        .cover-title {
+            font-size: 3.5rem;
+            font-family: "标小篆", "LXGW WenKai", serif;
+            letter-spacing: 8px;
+            margin-bottom: 0.2rem;
+            text-shadow: 2px 2px 0 #5e4a33, 4px 4px 0 rgba(0,0,0,0.3);
+        }
+        .cover-subtitle {
+            font-size: 1.5rem;
+            letter-spacing: 6px;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+        .cover-quote {
+            font-size: 1.2rem;
+            font-style: italic;
+            margin-bottom: 3rem;
+            opacity: 0.8;
+            border-top: 1px solid #b59d7a;
+            border-bottom: 1px solid #b59d7a;
+            padding: 0.8rem 0;
+            display: inline-block;
+        }
+        .cover-btn {
+            background: transparent;
+            border: 2px solid #b59d7a;
+            color: #f0e5d2;
+            font-size: 2rem;
+            font-family: inherit;
+            padding: 0.8rem 3rem;
+            border-radius: 4rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 4px 4px 0 #5e4a33;
+            letter-spacing: 4px;
+        }
+        .cover-btn:hover {
+            background: #b59d7a;
+            color: #2d2a22;
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 #5e4a33;
+        }
+        .cover-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0 #5e4a33;
+        }
+        @keyframes gentlePulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+        .popup-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.3);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            pointer-events: auto;
+        }
+        .popup-overlay.active {
+            display: flex;
+        }
+        .top-section {
+            flex-shrink: 0;
+            position: relative;
+            z-index: 2;
+            margin-bottom: 0.5rem;
+        }
+        h1 {
+            text-align: left;
+            font-size: 2.2rem;
+            font-weight: normal;
+            letter-spacing: 4px;
+            color: #4a3729;
+            margin-left: 1.5rem;
+            margin-bottom: 0.2rem;
+            text-shadow: 1px 1px 0 #e9d9be;
+            font-family: "标小篆", "霞鹜文楷", serif;
+            display: inline-block;
+            border-bottom: 2px solid #b59d7a;
+            padding-bottom: 0.2rem;
+        }
+        .chapter-tag {
+            font-size: 1rem;
+            color: #8b6f4c;
+            margin-left: 1.5rem;
+            margin-top: -0.2rem;
+            margin-bottom: 0.5rem;
+            font-style: italic;
+            letter-spacing: 2px;
+        }
+        .mid-section {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            position: relative;
+            z-index: 2;
+            margin: 0.5rem 0 1rem 0;
+            padding: 0 1rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .options-area {
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            width: 100%;
+        }
+        .option-btn {
+            background: #f0e5d2;
+            border: 1px solid #9e8468;
+            color: #2d2a22;
+            font-size: 1.25rem;
+            font-family: "霞鹜文楷", "KaiTi", serif;
+            padding: 0.8rem 1.5rem;
+            border-radius: 3rem;
+            cursor: pointer;
+            transition: 0.15s;
+            text-align: left;
+            box-shadow: 4px 4px 0 #b59d7a;
+            font-weight: normal;
+            letter-spacing: 0.02rem;
+            width: 100%;
+        }
+        .option-btn:hover {
+            background: #e6d6bc;
+            transform: translate(-2px, -2px);
+            box-shadow: 6px 6px 0 #b59d7a;
+        }
+        .option-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 2px 2px 0 #b59d7a;
+        }
+        .bottom-dialog {
+            flex-shrink: 0;
+            position: relative;
+            z-index: 2;
+            background-color: rgba(245, 235, 215, 0.9);
+            border: 2px solid #b59d7a;
+            border-radius: 1.5rem 1.5rem 0 0;
+            padding: 1.2rem 1.5rem 0.8rem 1.5rem;
+            margin-top: 0.5rem;
+            box-shadow: 0 -4px 12px rgba(90, 70, 40, 0.2);
+            backdrop-filter: blur(2px);
+            max-height: 35vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .story-area {
+            background-color: transparent;
+            border: none;
+            padding: 0;
+            line-height: 1.8;
+            font-size: 1.1rem;
+            color: #2d2a22;
+            white-space: normal;
+            word-break: break-word;
+            font-family: "霞鹜文楷", "KaiTi", "楷体", serif;
+            overflow-y: auto;
+            flex: 1;
+            min-height: 80px;
+            max-height: 200px;
+            margin-bottom: 0.5rem;
+            scrollbar-width: thin;
+            scrollbar-color: #b59d7a #f0e5d2;
+        }
+        .story-area::-webkit-scrollbar {
+            width: 6px;
+        }
+        .story-area::-webkit-scrollbar-thumb {
+            background-color: #b59d7a;
+            border-radius: 3px;
+        }
+        .story-area p {
+            text-indent: 2em;
+            margin: 0.6em 0;
+            white-space: pre-wrap;
+        }
+        .continue-btn {
+            align-self: flex-end;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            margin-top: 0.2rem;
+            font-size: 2.6rem;
+            line-height: 1;
+            color: #7b5f42;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            text-shadow: 2px 2px 3px rgba(0, 0, 0, 0.2);
+            transition: all 0.2s ease;
+        }
+        .continue-btn:hover {
+            color: #5e4a33;
+            transform: scale(1.15);
+            text-shadow: 3px 3px 5px rgba(0, 0, 0, 0.3);
+        }
+        .continue-btn:active {
+            transform: scale(0.95);
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.2);
+        }
+        .continue-btn.hidden {
+            display: none;
+        }
+        .popup-card {
+            background-color: #fff9ea;
+            border-left: 6px solid #9c7e5c;
+            border-top: 1px solid #d4bc9a;
+            border-right: 1px solid #d4bc9a;
+            border-bottom: 1px solid #d4bc9a;
+            border-radius: 0 12px 12px 0;
+            padding: 1.2rem 1.5rem;
+            max-width: 90%;
+            max-height: 80%;
+            overflow-y: auto;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            font-size: 1rem;
+            color: #3f3327;
+            position: relative;
+            animation: fadeIn 0.3s ease;
+            font-family: "霞鹜文楷", "KaiTi", serif;
+            z-index: 101;
+            margin: 1rem;
+        }
+        .popup-card h3 {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #6b4f35;
+            margin-bottom: 0.8rem;
+            border-bottom: 1px dashed #bb9b78;
+            padding-bottom: 0.3rem;
+            font-family: "标小篆", "霞鹜文楷", serif;
+        }
+        .popup-card .sub {
+            font-size: 1rem;
+            color: #8b6f4c;
+            margin-bottom: 0.8rem;
+            font-style: italic;
+        }
+        .popup-card .section {
+            margin: 0.8rem 0;
+        }
+        .popup-card .section strong {
+            color: #7b583a;
+            display: inline-block;
+            width: 4.5em;
+        }
+        .popup-card .voice-icon {
+            display: inline-block;
+            background-color: #9e7b56;
+            color: white;
+            border-radius: 2rem;
+            padding: 0.2rem 0.8rem;
+            font-size: 0.85rem;
+            margin-left: 0.5rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        .popup-card .close-icon {
+            position: absolute;
+            top: 8px;
+            right: 12px;
+            font-size: 1.4rem;
+            color: #b38b60;
+            cursor: pointer;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .footer {
+            flex-shrink: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            color: #6b5a48;
+            margin-top: 0.3rem;
+            padding: 0.3rem 0.5rem 0.5rem 0.5rem;
+            font-size: 0.9rem;
+            border-top: 1px solid #dacbb0;
+            position: relative;
+            z-index: 2;
+        }
+        .memory-tag {
+            background: #e2d2bb;
+            padding: 0.3rem 1rem;
+            border-radius: 2rem;
+            border: 1px solid #8b6f4c;
+            font-style: italic;
+        }
+        .bgm-control {
+            cursor: pointer;
+            background: transparent;
+            color: #7b5f42;
+            padding: 0.3rem 0.9rem;
+            border: 1px solid #9e8468;
+            border-radius: 2rem;
+        }
+        .reset-btn {
+            background: #d2bc9a;
+            border: 1px solid #7b5f42;
+            color: #2f2a1f;
+            font-size: 1rem;
+            padding: 0.4rem 1.2rem;
+            border-radius: 3rem;
+            cursor: pointer;
+            font-family: inherit;
+            box-shadow: 3px 3px 0 #5e4a33;
+            transition: 0.1s;
+        }
+        .reset-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 1px 1px 0 #5e4a33;
+        }
+        .character-left, .character-right {
+            position: absolute;
+            width: 200px;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+            pointer-events: none;
+        }
+        .character-left {
+            left: 15px;
+        }
+        .character-right {
+            right: 15px;
+        }
+        .character-left img, .character-right img {
+            width: 100%;
+            height: auto;
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+            display: block;
+        }
+        .char-name {
+            position: absolute;
+            bottom: 0;
+            background: rgba(30, 30, 30, 0.8);
+            color: #f0e5d2;
+            font-size: 1rem;
+            padding: 0.3rem 1.2rem;
+            border-radius: 30px;
+            border: 1px solid #b59d7a;
+            white-space: nowrap;
+            font-family: "霞鹜文楷", "KaiTi", serif;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .character-left .char-name {
+            left: 100%;
+            margin-left: 8px;
+        }
+        .character-right .char-name {
+            right: 100%;
+            margin-right: 8px;
+        }
+
+        /* 小屏幕手机（竖屏窄屏） */
+        @media (max-width: 600px) {
+            .character-left, .character-right {
+                width: 130px;
+            }
+            .character-left { left: 5px; }
+            .character-right { right: 5px; }
+            .char-name {
+                font-size: 0.8rem;
+                padding: 0.2rem 1rem;
+            }
+            .character-left .char-name {
+                margin-left: 5px;
+            }
+            .character-right .char-name {
+                margin-right: 5px;
+            }
+            .game-container { padding: 0.8rem 0.8rem 0 0.8rem; }
+            h1 { font-size: 1.6rem; margin-left: 0.5rem; }
+            .option-btn { font-size: 1rem; padding: 0.7rem 1rem; }
+            .story-area { font-size: 0.95rem; }
+            .continue-btn { font-size: 2rem; width: 32px; height: 32px; }
+            .bottom-dialog {
+                max-height: 35vh; /* 保持原有 */
+                padding: 1rem 1.2rem 0.6rem 1.2rem;
+            }
+        }
+
+        /* 中等屏幕（横屏手机、小平板） */
+        @media (min-width: 601px) and (max-width: 1000px) {
+            .story-area {
+                font-size: 1rem;        /* 比桌面端稍小 */
+            }
+            .option-btn {
+                font-size: 1.1rem;
+                padding: 0.6rem 1rem;
+            }
+            .bottom-dialog {
+                max-height: 40vh;        /* 适当增加高度 */
+                padding: 1rem 1.2rem 0.6rem 1.2rem;
+            }
+            .chapter-tag {
+                font-size: 0.9rem;
+            }
+            .character-left, .character-right {
+                width: 150px;            /* 立绘适中缩小 */
+            }
+            .char-name {
+                font-size: 0.9rem;
+                padding: 0.2rem 1rem;
+            }
+            .continue-btn {
+                font-size: 2.2rem;
+                width: 28px;
+                height: 28px;
+            }
+            h1 { font-size: 1.8rem; }
+        }
+
+        /* 大屏幕（桌面端）保持默认样式，无需额外修改 */
+        @media (min-width: 1001px) {
+            /* 保持现有样式 */
+        }
+
+        .history-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;            
+            background-color: #3d352e;
+            background-image: linear-gradient(145deg, #4d4239 0%, #2f2923 100%);
+            border-radius: 0;
+            box-shadow: 0 0 0 1px #b59d7a inset, 0 0 0 3px #7c5f42 inset;
+            color: #f0e5d2;
+            display: flex;               /* 改为 flex，让元素始终存在于文档流 */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            padding: 2rem;
+            box-sizing: border-box;
+            font-family: "霞鹜文楷", "KaiTi", serif;
+            opacity: 0;                  /* 初始透明 */
+            pointer-events: none;        /* 禁止交互 */
+            transition: opacity 0.6s ease; /* 淡入淡出过渡 */
+        }
+
+        .history-screen.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .history-text {
+            font-size: 1.5rem;
+            line-height: 2;
+            text-align: center;
+            margin-bottom: 3rem;
+            max-width: 90%;
+            white-space: pre-wrap;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        .history-options {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            width: 100%;
+            max-width: 300px;
+        }
+        .history-btn {
+            background: transparent;
+            border: 2px solid #b59d7a;
+            color: #f0e5d2;
+            font-size: 1.5rem;
+            font-family: inherit;
+            padding: 0.8rem 2rem;
+            border-radius: 3rem;
+            cursor: pointer;
+            transition: 0.2s;
+            text-align: center;
+            width: 100%;
+            box-shadow: 3px 3px 0 #5e4a33;
+        }
+        .history-btn:hover {
+            background: #b59d7a;
+            color: #2d2a22;
+            transform: translate(-2px, -2px);
+            box-shadow: 5px 5px 0 #5e4a33;
+        }
+        .history-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: 1px 1px 0 #5e4a33;
+        }
+    </style>
+</head>
+<body>
+<div class="game-container" id="gameContainer">
+    <div class="mask"></div>
+
+    <!-- 启动封面 -->
+    <div class="cover-screen" id="coverScreen">
+        <div class="cover-content">
+            <div class="cover-title">赤壁</div>
+            <div class="cover-subtitle">· 故纸舟 ·</div>
+            <div class="cover-quote">「一页江声，半船史」</div>
+            <button class="cover-btn" id="startGameBtn">启 卷</button>
+        </div>
+    </div>
+
+    <!-- 背景音效：江风 -->
+    <audio id="bgWind" loop preload="auto" style="display: none;">
+        <source src="sounds/wind.mp3" type="audio/mpeg">
+        您的浏览器不支持音频播放。
+    </audio>
+
+    <div class="popup-overlay" id="popupOverlay"></div>
+
+    <!-- 左侧立绘容器 -->
+    <div class="character-left" id="characterLeft" style="display: none;">
+        <img id="charLeftImg" src="" alt="">
+        <span class="char-name" id="charLeftName"></span>
+    </div>
+    <!-- 右侧立绘容器 -->
+    <div class="character-right" id="characterRight" style="display: none;">
+        <img id="charRightImg" src="" alt="">
+        <span class="char-name" id="charRightName"></span>
+    </div>
+    
+    <div class="top-section">
+        <h1>故纸舟·赤壁</h1>
+        <div class="chapter-tag" id="chapterTag">· 卷上 · 江陵城外 ·</div>
+    </div>
+    <div class="mid-section">
+        <div class="options-area" id="optionsContainer"></div>
+    </div>
+    <div class="bottom-dialog">
+        <div class="story-area" id="storyText"></div>
+        <div class="continue-btn hidden" id="continueBtn">▶</div>
+    </div>
+    <div class="footer">
+        <span class="memory-tag" id="routeTag">🌿 江陵城外</span>
+        <span class="bgm-control" id="bgmToggle">🔊 江风</span>
+        <button class="reset-btn" id="resetBtn"> 重头再来</button>
+    </div>
+
+    <!-- 史书页面 -->
+    <div class="history-screen" id="historyScreen">
+        <div class="history-text" id="historyText"></div>
+        <div class="history-options" id="historyOptions"></div>
+    </div>
+</div>
+<script>
+    (function() {
+        // ---------- 全局变量 ----------
+        let currentSceneId = 'opening1';
+        let route = 'none';
+        let popupQueue = [];
+
+        // 打字机相关变量
+        let typewriterTimer = null;
+        let isTyping = false;
+        let currentHtmlContent = '';        // 完整HTML（用于补全）
+        let currentParagraphTexts = [];     // 当前场景的段落纯文本数组
+
+        // 封面与音效控制
+        const coverScreen = document.getElementById('coverScreen');
+        const startBtn = document.getElementById('startGameBtn');
+        const bgWind = document.getElementById('bgWind');
+        let audioInitialized = false;   // 背景音是否已启动
+
+        // 当前播放的音频对象（用于取消）
+        let currentAudio = null;
+
+        // 元素引用
+        const gameContainer = document.getElementById('gameContainer');
+        const storyDiv = document.getElementById('storyText');
+        const optionsDiv = document.getElementById('optionsContainer');
+        const continueBtn = document.getElementById('continueBtn');
+        const routeTag = document.getElementById('routeTag');
+        const chapterTag = document.getElementById('chapterTag');
+        const resetBtn = document.getElementById('resetBtn');
+        const bgmToggle = document.getElementById('bgmToggle');
+        const popupOverlay = document.getElementById('popupOverlay');
+        const historyScreen = document.getElementById('historyScreen');
+        const historyText = document.getElementById('historyText');
+        const historyOptions = document.getElementById('historyOptions');
+
+        // ---------- 浮窗数据 ----------
+        const figureData = {
+            liubei: {
+                name: '刘备',
+                years: '161-223',
+                desc: '刘备是三国时期蜀汉的开国皇帝，他原本家里很穷，但他待人宽厚，很讲义气，和关羽、张飞结拜成了生死兄弟。后来他三顾茅庐请出诸葛亮帮忙，在赤壁之战后慢慢有了自己的地盘，最后在成都当上了皇帝。',
+                book: [
+                    '"天下英雄，唯使君与操耳。" —— 曹操评价，选自陈寿《三国志·蜀书·先主传》',
+                    '"宽仁有度，能得众人死力。" —— 傅干评价，选自陈寿《三国志·蜀书·先主传》'
+                ],
+                folk: '营里老兵说，刘使君那人可仁义了，当年带着十几万老百姓逃难，走得慢也不肯丢下他们。还说他对兄弟特别好，身边的几个将军跟了他一辈子，到死都愿意跟着他。我想，能让那么多人死心塌地追随的人，应该差不了。'
+            },
+            caocao: {
+                name: '曹操',
+                years: '155-220',
+                desc: '字孟德，东汉末年政治家、军事家、文学家。他很会用人，只要有本事的人，不管出身高低他都愿意用。他还推行了"屯田"，就是让士兵在不打仗的时候种粮食，这样军队就不会饿肚子。他的儿子曹丕后来当了皇帝，追封他为魏武帝。',
+                book: [
+                    '"治世之能臣，乱世之奸雄。" —— 范晔《后汉书·许劭传》',
+                    '"抑可谓非常之人，超世之杰矣。" —— 陈寿《三国志·魏书·武帝纪第一》'
+                ],
+                folk: '那年我们在曹营，远远见过丞相一回。后来听人说丞相杀人很多，可也有人说他不坏。我搞不清。我只记得，那天远远瞧见他骑马过去，袍子被风吹得鼓鼓的，像个普通人骑在马上。'
+            },
+            guojia: {
+                name: '郭嘉',
+                years: '170-207',
+                desc: '字奉孝，颍川阳翟人。曹操身边一个很会出主意的人，他总是能帮曹操想到好办法，帮曹操打赢了很多仗。可惜他很年轻就生病去世了，死的时候才三十多岁。后来曹操打了败仗，经常念叨他。',
+                book: [
+                    '"使孤成大业者，必此人也。" —— 曹操评价郭嘉，选自陈寿《三国志·魏书·郭嘉传》',
+                    '"每有大议，临敌制变。臣策未决，嘉辄成之。平定天下，谋功为高。" —— 曹操追悼表章',
+                    '"郭奉孝在，不使孤至此。" —— 曹操赤壁败后所说'
+                ],
+                folk: '听说郭嘉年纪轻轻就死了，要是他还活着，丞相说不定就不会打赤壁这场仗了。'
+            },
+            zhouyu: {
+                name: '周瑜',
+                years: '175-210',
+                desc: '字公瑾，东汉末年有名的将领，辅佐孙策、孙权平定江东。赤壁之战中任大都督，打败了曹操的军队。人长得帅，还精通音乐，待人宽厚，大家都叫他"周郎"。可惜三十六岁就病逝了。',
+                book: [
+                    '"遥想公瑾当年，小乔初嫁了，雄姿英发。" —— 苏轼《念奴娇·赤壁怀古》',
+                    '"周瑜、鲁肃建独断之明，出众人之表，实奇才也。" —— 陈寿《三国志》'
+                ],
+                folk: '营里有人传，东吴那个都督，打仗厉害，还懂音乐，听说他喝多了都能听出来谁弹错音，弹错了他就回头看一眼。'
+            },
+            zhugeliang: {
+                name: '诸葛亮',
+                years: '181-234',
+                desc: '字孔明，三国时期蜀汉丞相，杰出的政治家、军事家、发明家。刘备身边最聪明的军师，帮刘备打赢了很多仗。他发明过"木牛流马"运粮食，还做过能飞的"孔明灯"。他对刘备特别忠心，辅佐刘备建立蜀汉政权。',
+                book: [
+                    '"三顾频烦天下计，两朝开济老臣心。" —— 杜甫《蜀相》',
+                    '"出师未捷身先死，长使英雄泪满襟。" —— 杜甫《蜀相》'
+                ],
+                folk: '有回在江边搬草料，远远看见一群人围着一个摇扇子的人。老兵说那就是刘使君请来的军师，可厉害了，会呼风唤雨呢！听说他们两人天天在一块商量事儿，有时候聊到后半夜。我心想，这军师不睡觉的吗？'
+            }
+        };
+
+        // ---------- 场景定义 ----------
+        const scenes = {
+            opening1: {
+                text: '公元208年，中国历史上叫"建安十三年"。这一年，北方最大的军阀曹操率领大军南下，想要统一整个中国。\n\n南方有两股力量——一个是刘备，一个叫孙权。他们决定联合起来，在长江边的赤壁对抗曹操。这就是历史上著名的"赤壁之战"。',
+                options: [ { text: '继续...', nextScene: 'opening2' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/fire.jpg'
+            },
+            opening2: {
+                text: '你不是曹操，不是刘备，不是周瑜，也不是诸葛亮。你只是一个16岁的农家少年，叫阿望，住在江陵城外。战争来了，你失去了父亲，和邻村的伙伴阿瓜一起，踏上了流亡的路。\n\n你不知道这场战争谁会赢。你只知道，活下去。',
+                options: [ { text: '继续...', nextScene: 'crossroads0' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/fire.jpg'
+            },
+            crossroads0: {
+                text: '你跟着同村人往南跑，想追上南行的队伍。跑了三天，鞋子烂了，脚底全是血口。\n\n你瘫坐在路边，阿瓜拽你袖子。',
+                options: [ { text: '继续...', nextScene: 'crossroads1' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/crossroads.jpg'
+            },
+            crossroads1: {
+                text: '往南能追上刘使君，往北......听说那边管饭。',
+                options: [ { text: '继续...', nextScene: 'crossroads' } ],
+                leftChar: null,
+                rightChar: { name: '阿瓜', image: 'images/agua.png' },
+                popup: null,
+                bg: 'images/crossroads.jpg'
+            },
+            crossroads: {
+                text: '官道上烟尘滚滚，南边是望不见头的难民队伍，北边是曹军辎重队的旗帜。',
+                options: [
+                    { text: '【北行线】往北走，进曹营活命', nextScene: 'north_intro' },
+                    { text: '【南行线】往南追，加入刘备的队伍', nextScene: 'south_intro' }
+                ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/crossroads.jpg'
+            },
+            north_intro: {
+                text: '你和阿瓜跟着辎重队往北走，管马料的什长见你们瘦，多掰了半块饼，于是你们被编入曹营辎重队。你们开始在江北驻扎，每天喂马、搬草、修补船帆。\n\n十月过去了，江边的风越来越冷。曹营里人越来越多，从北方来的兵说话口音你听不懂，但有一个词你总能听见——"丞相"。',
+                options: [ { text: '继续', nextScene: 'north_camp_life0' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/north_camp.jpg'
+            },
+            north_camp_life0: {
+                text: '有一天，你和阿瓜搬草料时，远远看见一群人骑马经过。有人指着中间那个穿红袍的说："那就是丞相。"你只看见一个背影，很快就被尘土遮住了。',
+                options: [ { text: '继续', nextScene: 'north_camp_life1' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/caocao.jpg'
+            },
+            north_camp_life1: {
+                text: '（小声）听说丞相手下能人可多了，有管钱粮的，有出主意的。可惜去年死了一个顶厉害的，不然......',
+                options: [ { text: '继续', nextScene: 'north_camp_life' } ],
+                leftChar: null,
+                rightChar: { name: '阿瓜', image: 'images/agua.png' },
+                popup: null,
+                bg: 'images/caocao.jpg'
+            },
+            north_camp_life: {
+                text: '不然什么？',
+                options: [ { text: '继续', nextScene: 'north_camp_life2' } ],
+                leftChar: { name: '阿望', image: 'images/awang.png' },
+                rightChar: null,
+                popup: 'guojia',
+                bg: 'images/caocao.jpg'
+            },
+            north_camp_life2: {
+                text: '（挠头）我也是听人说的，说要是那个人还在，丞相说不定就不会打这个仗了。',
+                options: [ { text: '继续', nextScene: 'north_before_battle' } ],
+                leftChar: null,
+                rightChar: { name: '阿瓜', image: 'images/agua.png' },
+                popup: null,
+                bg: 'images/caocao.jpg'
+            },
+            north_before_battle: {
+                text: '十一月初，营里开始忙起来。有人在江边造船，有人在磨刀枪。你听营里的老兵说对岸的敌军是江东的势力，还有刘使君的人，有个很厉害的都督，还有个军师，号称可以呼风唤雨。',
+                options: [ { text: '继续', nextScene: 'north_before_battle1' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/pre_battle.jpg'
+            },
+            north_before_battle1: {
+                text: '(瞪大眼睛)呼风唤雨？那不成神仙了？',
+                options: [ { text: '继续', nextScene: 'north_before_battle2' } ],
+                leftChar: null,
+                rightChar: { name: '阿瓜', image: 'images/agua.png' },
+                popup: null,
+                bg: 'images/pre_battle.jpg'
+            },
+            north_before_battle2: {
+                text: '一天夜里，你被一阵嘈杂声惊醒。有人喊："南船来了！"你和阿瓜爬到土坡上，看见江面上有火光，但很快就灭了。老兵说那是试探，真正的仗还没打。\n\n天气越来越冷，很多北方兵拉肚子，营里天天煮药。你听见什长叹气："这仗......不好打啊。"',
+                options: [ { text: '继续', nextScene: 'north_battle' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/pre_battle1.jpg'
+            },
+            north_battle: {
+                text: '一天傍晚，江面起了东南风，很急。有人指着对岸说："有船过来了！"接着，你看见那些船突然烧起来，顺风直冲曹营水寨。\n\n整个江面红了。',
+                options: [ { text: '继续', nextScene: 'north_aftermath_choices' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/fire.jpg'
+            },
+            north_aftermath_choices: {
+                text: '你和阿瓜站在土坡上，江面通红，喊杀声隔水传来。身后有人喊"败了败了"，人群开始溃散。',
+                options: [
+                    { text: 'A 留在江北，帮什长拢马', nextScene: 'north_aftermath_A' },
+                    { text: 'B 趁乱往江边摸，找船过江', nextScene: 'north_aftermath_B' },
+                    { text: 'C 不跑不渡，和什长一起等天亮', nextScene: 'north_aftermath_C' }
+                ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/defeat.jpg'
+            },
+            north_aftermath_A: {
+                text: '什长带着你们收拢了几匹惊马，天快亮时，他叹了口气，指着南边："你们往那边走吧，过了江，活路多。"你们沿着他指的方向走了一天一夜，在江边遇上了刘备军的民夫队。',
+                options: [ { text: '继续', nextScene: 'ending0' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/morning.jpg'
+            },
+            north_aftermath_B: {
+                text: '你们抱着一块破船板漂了半夜，被江水冲到南岸的一片浅滩上。第二天晌午，一队出来砍柴的民夫发现了你们，把你们带回了营寨。',
+                options: [ { text: '继续', nextScene: 'ending0' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/river.jpg'
+            },
+            north_aftermath_C: {
+                text: '天亮后，什长带你们往南走。走了两天，在一处渡江口正遇上过江的民夫队。什长和管事的说了几句话，回头冲你们摆摆手："去吧，跟着他们能活。"',
+                options: [ { text: '继续', nextScene: 'ending0' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/escape.jpg'
+            },
+            south_intro: {
+                text: '你和阿瓜拼命往南追，追了七天，终于追上了刘备军的后队。你们被编入民夫队，负责运送粮草、修缮器械。\n\n十月里，你们跟着队伍往东走，退到樊口一带。这里离江边不远，经常能看见水师的船在江上巡弋。',
+                options: [ { text: '继续', nextScene: 'south_camp_life0' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/south_camp.jpg'
+            },
+            south_camp_life0: {
+                text: '有一天，你和阿瓜运草料时，看见江边站着一群人，为首的是个年轻将领，正在指挥船只。',
+                options: [ { text: '继续', nextScene: 'south_camp_life' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/zhouyu.jpg'
+            },
+            south_camp_life: {
+                text: '有人小声说："那就是周都督，江东的兵马都归他管。"',
+                options: [ { text: '继续', nextScene: 'south_camp_life1' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: 'zhouyu',
+                bg: 'images/zhouyu.jpg'
+            },
+            south_camp_life1: {
+                text: '几天后，营里来了个羽扇纶巾的人，跟都督说了很久的话。阿瓜打听回来，神秘兮兮地说：',
+                options: [ { text: '继续', nextScene: 'south_camp_life2' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/zhuge.jpg'
+            },
+            south_camp_life2: {
+                text: '那是刘使君请来的军师，听说会借东风！',
+                options: [ { text: '继续', nextScene: 'south_camp_life3' } ],
+                leftChar: null,
+                rightChar: { name: '阿瓜', image: 'images/agua.png' },
+                popup: null,
+                bg: 'images/zhuge.jpg'
+            },
+            south_camp_life3: {
+                text: '你真信？',
+                options: [ { text: '继续', nextScene: 'south_camp_life4' } ],
+                leftChar: { name: '阿望', image: 'images/awang.png' },
+                rightChar: null,
+                popup: 'zhugeliang',
+                bg: 'images/zhuge.jpg'
+            },
+            south_camp_life4: {
+                text: '(挠头)我也不知道......反正大家都这么说。',
+                options: [ { text: '继续', nextScene: 'south_battle' } ],
+                leftChar: null,
+                rightChar: { name: '阿瓜', image: 'images/agua.png' },
+                popup: null,
+                bg: 'images/zhuge.jpg'
+            },
+            south_battle: {
+                text: '一天傍晚，江面起了东南风，很急。都督下令出战。你和阿瓜站在江边，看着船队顺风驶向江北。快到对岸时，那些船突然烧起来，直冲曹营水寨。\n\n整个江面红了。',
+                options: [ { text: '继续', nextScene: 'south_aftermath_choices' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/fire.jpg'
+            },
+            south_aftermath_choices: {
+                text: '你和阿瓜站在江边，江面通红，欢呼声震天。有人喊"赢了赢了"，有人在江边跪下来磕头。',
+                options: [
+                    { text: 'A 留在营中，帮民夫队收拾器械', nextScene: 'south_aftermath_A' },
+                    { text: 'B 跑到江边，看战场打扫', nextScene: 'south_aftermath_B' },
+                    { text: 'C 跟着队伍往江北去，看看那边什么样', nextScene: 'south_aftermath_C' }
+                ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/victory.jpg'
+            },
+            south_aftermath_A: {
+                text: '你没去江边。营里乱糟糟的，到处是散落的箭矢、翻倒的粮车、来不及收起的帐篷。你和几个民夫一起把散落的器械归拢到一处，又帮着把伤员抬进棚子里。天快黑的时候，有人从江边回来，说曹营那边烧得啥都不剩了。',
+                options: [ { text: '继续', nextScene: 'south_aftermath_0' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/cleanup.jpg'
+            },
+            south_aftermath_0: {
+                text: '几天后，你和阿瓜随军进入江北，打扫战场。你们看见曹营留下的残迹，也看见很多没来得及走的北方兵被收编。',
+                options: [ { text: '继续', nextScene: 'ending0' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/cleanup1.jpg'
+            },
+            south_aftermath_B: {
+                text: '你和阿瓜跑到江边时，火已经熄了大半。江面上漂着烧焦的船板、破旗子、还有分不清是什么的东西。有人在岸边用长竿把飘过来的东西往岸边拨。你看见水边有只靴子，半截埋在泥里，靴筒上还沾着没烧完的布。你在江边站了很久，看着对岸还在冒烟的营寨。',
+                options: [ { text: '继续', nextScene: 'south_aftermath_0' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/riverside.jpg'
+            },
+            south_aftermath_C: {
+                text: '你跟着一队士兵上了渡船。江北的岸上比江南乱得多——烧塌的营帐、散落的兵器、还有没来得及跑的战马，在原地转着圈嘶鸣。几个北方兵蹲在一边，身上没穿甲，低着头，旁边站着两个拿刀的士兵。没人说话，就那么蹲着。你扭过头，跟着队伍往前走。',
+                options: [ { text: '继续', nextScene: 'ending0' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                bg: 'images/north_ruins.jpg'
+            },
+            ending0: {
+                text: '建安二十三年，你已经二十六岁了。没当官，没战功，没死。你在江陵城外开了间小茶棚，南来北往的客商说书，讲到赤壁之战，讲周都督的英武、诸葛的神算、曹军如何败退。',
+                options: [ { text: '继续...', nextScene: 'ending1' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                ending: true,
+                bg: 'images/teahouse.jpg'
+            },
+            ending1: {
+                text: '你不插嘴。',
+                options: [ { text: '继续...', nextScene: 'ending2' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                ending: true,
+                bg: 'images/teahouse.jpg'
+            },
+            ending2: {
+                text: '偶尔有人问你："老丈，那年你在哪儿？"\n\n你说："在江边。"',
+                options: [ { text: '继续...', nextScene: 'ending3' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                ending: true,
+                bg: 'images/teahouse.jpg'
+            },
+            ending3: {
+                text: '阿瓜偶尔来喝茶，他现在是木匠，头发也白了。他坐在门槛上，忽然问："你还记得那年的事吗？"\n\n你点点头。',
+                options: [ { text: '继续...', nextScene: 'ending4' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                ending: true,
+                bg: 'images/teahouse.jpg'
+            },
+            ending4: {
+                text: '他问："要是当时选了另一边，会咋样？"',
+                options: [ { text: '继续...', nextScene: 'ending' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                ending: true,
+                bg: 'images/teahouse.jpg'
+            },
+            ending: {
+                text: '你看着江面，想了很久。\n\n江风吹过，你端起茶碗。\n\n（完）',
+                options: [ { text: '继续...', nextScene: 'history' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+                ending: true,
+                bg: 'images/teahouse.jpg'
+            },
+            history: {
+                text: '建安十三年，曹操南下攻打孙刘联军。联军由周瑜当总指挥，和曹军隔江相望。战前，周瑜的部下黄盖向曹操假装投降，实则是为了铺垫后来的火攻。战争发动的那天，诸葛亮没有借东风，东南风起是自然原因。东吴的船队带着火光冲进曹营，而曹军又恰好把船绑在了一起，一时间火势更加猛烈，曹军大败，船只烧毁殆尽。这就是奠定下三国鼎立局面的赤壁之战。',
+                options: [ { text: '重头再来', nextScene: 'opening1' } ],
+                leftChar: null,
+                rightChar: null,
+                popup: null,
+            }
+        };
+
+        // ---------- 音频播放函数 ----------
+        function playAudio(audioId, onEndCallback) {
+            // 停止当前正在播放的音频
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio = null;
+            }
+            const extension = (audioId === 'wind') ? '.mp3' : '.MP3';
+            const audioPath = `sounds/${audioId}${extension}`;
+            const audio = new Audio(audioPath);
+            audio.preload = 'auto';
+            audio.onerror = () => console.log(`音频 ${audioPath} 不存在或无法播放`);
+            audio.onended = () => {
+                if (onEndCallback) onEndCallback();
+                if (currentAudio === audio) currentAudio = null;
+            };
+            audio.play().catch(e => console.log('音频播放失败', e));
+            currentAudio = audio;
+        }
+
+        function cancelAllSpeech() {
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio = null;
+            }
+        }
+
+        // ---------- 辅助函数 ----------
+        function hideInteractions() {
+            optionsDiv.style.display = 'none';
+            continueBtn.classList.add('hidden');
+        }
+
+        function restoreInteractions(scene) {
+            if (scene.options.length === 1) {
+                optionsDiv.style.display = 'none';
+                continueBtn.classList.remove('hidden');
+            } else {
+                optionsDiv.style.display = 'flex';
+                continueBtn.classList.add('hidden');
+            }
+        }
+
+        // 打字机效果：逐段落逐字显示
+        function typeWriter(paragraphElements, paragraphsText, speed = 30, callback) {
+            if (typewriterTimer) clearInterval(typewriterTimer);
+            isTyping = true;
+            currentParagraphTexts = paragraphsText;  // 保存用于后续恢复
+
+            // 清空所有段落
+            paragraphElements.forEach(p => p.textContent = '');
+
+            // 不朗读，只打字
+            // 音频已在 displayScene 中播放
+
+            let paraIndex = 0;
+            let charIndex = 0;
+
+            function typeNext() {
+                if (paraIndex >= paragraphsText.length) {
+                    clearInterval(typewriterTimer);
+                    typewriterTimer = null;
+                    isTyping = false;
+                    if (callback) callback();
+                    return;
+                }
+
+                const currentPara = paragraphElements[paraIndex];
+                const currentText = paragraphsText[paraIndex];
+
+                if (charIndex < currentText.length) {
+                    currentPara.textContent += currentText[charIndex];
+                    charIndex++;
+                    storyDiv.scrollTop = storyDiv.scrollHeight;
+                } else {
+                    paraIndex++;
+                    charIndex = 0;
+                    typeNext();
+                }
+            }
+
+            typewriterTimer = setInterval(typeNext, speed);
+        }
+
+        // 补全打字（用于点击继续或选项时）
+        function completeTyping() {
+            if (isTyping) {
+                clearInterval(typewriterTimer);
+                typewriterTimer = null;
+                isTyping = false;
+                storyDiv.innerHTML = currentHtmlContent;
+            }
+        }
+
+        // 显示浮窗
+        function showPopup(figureKey) {
+            const fig = figureData[figureKey];
+            if (!fig) return;
+
+            completeTyping();
+            cancelAllSpeech();
+
+            const existingPopup = document.querySelector('.popup-card');
+            if (existingPopup) existingPopup.remove();
+
+            const popup = document.createElement('div');
+            popup.className = 'popup-card';
+            let bookHtml = '';
+            if (fig.book && fig.book.length) {
+                bookHtml = '<div class="section"><strong>书中记：</strong><br>' + fig.book.join('<br>') + '</div>';
+            }
+            popup.innerHTML = `
+                <span class="close-icon" id="closePopup">✕</span>
+                <h3>${fig.name} (${fig.years || ''})</h3>
+                <div class="sub">${fig.desc}</div>
+                ${bookHtml}
+                <div class="section"><strong>百姓说：</strong> ${fig.folk}</div>
+                <div style="margin-top:0.6rem; text-align:right;"><span class="voice-icon" id="simulateVoice">🔊 朗读中...</span></div>
+            `;
+
+            popupOverlay.innerHTML = '';
+            popupOverlay.appendChild(popup);
+            popupOverlay.classList.add('active');
+
+            hideInteractions();
+
+            // 播放名人音频，播放结束时自动关闭浮窗
+            playAudio(figureKey, () => {
+                if (popupOverlay.classList.contains('active')) {
+                    closePopupAndContinue();
+                }
+            });
+
+            // 手动关闭浮窗
+            document.getElementById('closePopup').addEventListener('click', function(e) {
+                e.stopPropagation();
+                cancelAllSpeech();
+                closePopupAndContinue();
+            });
+
+            const voiceIcon = document.getElementById('simulateVoice');
+            if (voiceIcon) {
+                voiceIcon.addEventListener('click', function() {});
+            }
+        }
+
+        function closePopupAndContinue() {
+            cancelAllSpeech();
+
+            popupOverlay.classList.remove('active');
+            popupOverlay.innerHTML = '';
+
+            const currentScene = scenes[currentSceneId];
+            if (currentScene) {
+                restoreInteractions(currentScene);
+            }
+
+            if (popupQueue.length > 0) {
+                const next = popupQueue.shift();
+                showPopup(next);
+            } else {
+                // 所有浮窗处理完毕，恢复场景音频（如果有）
+                // 直接播放当前场景的音频（如果场景存在且没有新的音频）
+                if (currentScene) {
+                    playAudio(currentSceneId);
+                }
+            }
+
+            adjustCharacterPosition();
+        }
+
+        function adjustCharacterPosition() {
+            const bottomDialog = document.querySelector('.bottom-dialog');
+            const gameContainer = document.getElementById('gameContainer');
+            const leftChar = document.querySelector('.character-left');
+            const rightChar = document.querySelector('.character-right');
+            
+            if (!bottomDialog || !gameContainer) return;
+            
+            const dialogRect = bottomDialog.getBoundingClientRect();
+            const containerRect = gameContainer.getBoundingClientRect();
+            const dialogTopRelative = dialogRect.top - containerRect.top;
+            const containerHeight = containerRect.height;
+            const bottomValue = containerHeight - dialogTopRelative;
+            
+            if (leftChar && leftChar.style.display !== 'none') {
+                leftChar.style.bottom = bottomValue + 'px';
+            }
+            if (rightChar && rightChar.style.display !== 'none') {
+                rightChar.style.bottom = bottomValue + 'px';
+            }
+        }
+
+        function displayScene(sceneId) {
+            cancelAllSpeech();
+
+            popupOverlay.classList.remove('active');
+            popupOverlay.innerHTML = '';
+            popupQueue = [];
+
+            if (sceneId === 'history') {
+                document.querySelector('.mask').style.display = 'none';
+                document.querySelector('.top-section').style.display = 'none';
+                document.querySelector('.mid-section').style.display = 'none';
+                document.querySelector('.bottom-dialog').style.display = 'none';
+                document.querySelector('.footer').style.display = 'none';
+                document.getElementById('characterLeft').style.display = 'none';
+                document.getElementById('characterRight').style.display = 'none';
+
+                const scene = scenes.history;
+                historyText.textContent = scene.text;
+                historyOptions.innerHTML = '';
+                scene.options.forEach(opt => {
+                    const btn = document.createElement('button');
+                    btn.className = 'history-btn';
+                    btn.textContent = opt.text;
+                    btn.addEventListener('click', () => {
+                        displayScene(opt.nextScene);
+                    });
+                    historyOptions.appendChild(btn);
+                });
+                historyScreen.classList.add('active');
+                return;
+            } else {
+                historyScreen.classList.remove('active');
+                document.querySelector('.mask').style.display = 'block';
+                document.querySelector('.top-section').style.display = 'block';
+                document.querySelector('.mid-section').style.display = 'flex';
+                document.querySelector('.bottom-dialog').style.display = 'flex';
+                document.querySelector('.footer').style.display = 'flex';
+            }
+
+            const scene = scenes[sceneId];
+            if (!scene) return;
+            currentSceneId = sceneId;
+
+            if (scene.bg) {
+                gameContainer.style.backgroundImage = `url('${scene.bg}')`;
+                gameContainer.style.backgroundColor = 'transparent';
+            } else {
+                gameContainer.style.backgroundImage = 'none';
+                gameContainer.style.backgroundColor = '#f8f0e2';
+            }
+
+            let mainText = scene.text;
+            if (sceneId === 'ending2') {
+                if (route === 'north') {
+                    mainText += '\n\n（你想起那个什长、那半块饼、那个穿着红袍的丞相背影）';
+                } else if (route === 'south') {
+                    mainText += '\n\n（你想起周瑜和诸葛亮的身影，江边那场火）';
+                }
+            }
+
+            const rawParagraphs = mainText.split(/\n\s*\n/).filter(p => p.trim() !== '');
+            let htmlContent = '';
+            const plainParagraphs = [];
+            rawParagraphs.forEach(para => {
+                const lines = para.split('\n').filter(line => line.trim() !== '');
+                const plainText = lines.join('\n');
+                plainParagraphs.push(plainText);
+                const paraWithBr = lines.join('<br>');
+                htmlContent += `<p>${paraWithBr}</p>`;
+            });
+            if (htmlContent === '') htmlContent = '<p></p>';
+            currentHtmlContent = htmlContent;
+
+            storyDiv.innerHTML = '';
+            const paraElements = [];
+            for (let i = 0; i < plainParagraphs.length; i++) {
+                const p = document.createElement('p');
+                storyDiv.appendChild(p);
+                paraElements.push(p);
+            }
+
+            // 播放场景音频（在打字开始之前）
+            playAudio(sceneId);
+
+            typeWriter(paraElements, plainParagraphs, 30, () => {});
+
+            if (sceneId.startsWith('north')) {
+                route = 'north';
+                routeTag.innerText = '⚔️ 曹营·江北';
+                chapterTag.innerText = '· 江北篇 ·';
+            } else if (sceneId.startsWith('south')) {
+                route = 'south';
+                routeTag.innerText = '🌊 联军·江南';
+                chapterTag.innerText = '· 江南篇 ·';
+            } else if (sceneId === 'opening1' || sceneId === 'opening2' || sceneId === 'crossroads0' || sceneId === 'crossroads1' || sceneId === 'crossroads') {
+                route = 'none';
+                routeTag.innerText = '🌿 江陵城外';
+                chapterTag.innerText = '· 卷上 · 江陵城外 ·';
+            } else if (sceneId === 'ending') {
+                routeTag.innerText = route === 'north' ? '🍵 江北归客' : '🍵 江南旧人';
+                chapterTag.innerText = '· 尾声 · 江边茶棚 ·';
+            }
+
+            if (scene.options.length === 1) {
+                optionsDiv.style.display = 'none';
+                continueBtn.classList.remove('hidden');
+                continueBtn.onclick = function() {
+                    if (isTyping) {
+                        completeTyping();
+                        return;
+                    }
+                    const nextSceneId = scene.options[0].nextScene;
+                    popupOverlay.classList.remove('active');
+                    popupOverlay.innerHTML = '';
+                    popupQueue = [];
+                    displayScene(nextSceneId);
+                };
+            } else {
+                optionsDiv.style.display = 'flex';
+                continueBtn.classList.add('hidden');
+                optionsDiv.innerHTML = '';
+                scene.options.forEach((opt) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'option-btn';
+                    btn.innerText = opt.text;
+                    btn.addEventListener('click', () => {
+                        completeTyping();
+                        popupOverlay.classList.remove('active');
+                        popupOverlay.innerHTML = '';
+                        popupQueue = [];
+                        displayScene(opt.nextScene);
+                    });
+                    optionsDiv.appendChild(btn);
+                });
+            }
+
+            if (sceneId === 'crossroads') {
+                popupQueue.push('liubei', 'caocao');
+                showPopup(popupQueue.shift());
+            } else if (scene.popup) {
+                popupQueue.push(scene.popup);
+                showPopup(popupQueue.shift());
+            }
+
+            function updateCharacters(leftChar, rightChar) {
+                const leftDiv = document.getElementById('characterLeft');
+                const rightDiv = document.getElementById('characterRight');
+                const leftImg = document.getElementById('charLeftImg');
+                const rightImg = document.getElementById('charRightImg');
+                const leftName = document.getElementById('charLeftName');
+                const rightName = document.getElementById('charRightName');
+
+                if (leftChar) {
+                    leftImg.src = leftChar.image;
+                    leftName.textContent = leftChar.name;
+                    leftDiv.style.display = 'flex';
+                } else {
+                    leftDiv.style.display = 'none';
+                }
+
+                if (rightChar) {
+                    rightImg.src = rightChar.image;
+                    rightName.textContent = rightChar.name;
+                    rightDiv.style.display = 'flex';
+                } else {
+                    rightDiv.style.display = 'none';
+                }
+            }
+
+            updateCharacters(scene.leftChar, scene.rightChar);
+
+            setTimeout(adjustCharacterPosition, 10);
+        }
+
+        function resetGame() {
+            cancelAllSpeech();
+
+            popupOverlay.classList.remove('active');
+            popupOverlay.innerHTML = '';
+            popupQueue = [];
+            route = 'none';
+            if (typewriterTimer) {
+                clearInterval(typewriterTimer);
+                typewriterTimer = null;
+                isTyping = false;
+            }
+            displayScene('opening1');
+            document.getElementById('characterLeft').style.display = 'none';
+            document.getElementById('characterRight').style.display = 'none';
+        }
+
+        window.addEventListener('resize', adjustCharacterPosition);
+
+        // 背景音控制
+        let bgmOn = false;
+        bgmToggle.addEventListener('click', () => {
+            bgmOn = !bgmOn;
+            if (bgmOn) {
+                bgWind.pause();
+                bgmToggle.innerText = '🔇 江风(静)';
+            } else {
+                bgWind.play().catch(e => console.log('背景音播放失败:', e));
+                bgmToggle.innerText = '🔊 江风';
+            }
+        });
+
+        resetBtn.addEventListener('click', resetGame);
+
+        // 封面点击事件：启动游戏
+        startBtn.addEventListener('click', function() {
+            if (!audioInitialized) {
+                bgWind.play()
+                    .then(() => {
+                        audioInitialized = true;
+                        displayScene('opening1');
+                    })
+                    .catch(e => {
+                        console.log('背景音播放失败:', e);
+                        displayScene('opening1');
+                    });
+            } else {
+                displayScene('opening1');
+            }
+
+            coverScreen.classList.add('fade-out');
+            setTimeout(() => {
+                coverScreen.style.display = 'none';
+            }, 800);
+        });
+    })();
+</script>
+</body>
+</html>
