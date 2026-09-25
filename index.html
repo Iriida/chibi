@@ -593,7 +593,7 @@ h1 {
  * 1. 数据层
  * ================================================================ */
 
-const CDN = '';
+const CDN = '';  // 如需走 jsDelivr，填入 'https://cdn.jsdelivr.net/gh/用户名/仓库名@main/'
 
 const FIGURES = {
   liubei: {
@@ -965,7 +965,12 @@ const state = {
 };
 
 /* ================================================================
- * 3.5 资源预加载
+ * 3.5 资源预加载 + 音频缓存池
+ * ================================================================
+ * 核心思路：
+ *   - 预加载和播放共用同一个 Audio 对象（audioCache）
+ *   - 播放时从缓存池取，不再 new Audio()，避免重新加载和解码
+ *   - 第一次加载时把关键资源全部拉下来，之后切场景几乎瞬发
  * ================================================================ */
 
 const _preloaded = new Set();
@@ -973,6 +978,26 @@ const _loadingPromises = [];
 let _totalAssets = 0;
 let _loadedAssets = 0;
 
+/* 音频缓存池：id → HTMLAudioElement */
+const audioCache = new Map();
+
+function getAudioUrl(id) {
+  const ext = AUDIO_EXT[id] || '.MP3';
+  return `${CDN}sounds/${id}${ext}`;
+}
+
+function acquireAudio(id) {
+  let audio = audioCache.get(id);
+  if (audio) return audio;
+  audio = new Audio();
+  audio.preload = 'auto';
+  audio.src = getAudioUrl(id);
+  audio.load();
+  audioCache.set(id, audio);
+  return audio;
+}
+
+/* ---------- 图片预加载 ---------- */
 function preloadImg(url) {
   if (!url || _preloaded.has(url)) return Promise.resolve();
   _preloaded.add(url);
@@ -990,20 +1015,24 @@ function preloadImg(url) {
   return p;
 }
 
-function preloadAudio(url) {
-  if (!url || _preloaded.has(url)) return Promise.resolve();
-  _preloaded.add(url);
+/* ---------- 音频预加载（按 id，复用缓存池） ---------- */
+function preloadAudioById(id) {
+  const key = 'audio:' + id;
+  if (_preloaded.has(key)) return Promise.resolve();
+  _preloaded.add(key);
   _totalAssets++;
+
+  const audio = acquireAudio(id);
+
   const p = new Promise(resolve => {
-    const a = new Audio();
-    a.preload = 'auto';
-    a.oncanplaythrough = a.onerror = () => {
+    const done = () => {
       _loadedAssets++;
       updateLoadingProgress();
       resolve();
     };
-    a.src = url;
-    a.load();
+    if (audio.readyState >= 4) { done(); return; }
+    audio.addEventListener('canplaythrough', done, { once: true });
+    audio.addEventListener('error', done, { once: true });
   });
   _loadingPromises.push(p);
   return p;
@@ -1023,7 +1052,7 @@ function preloadScene(sceneId) {
   if (scene.bg) preloadImg(scene.bg);
   if (scene.leftChar && CHARS[scene.leftChar]) preloadImg(CHARS[scene.leftChar].image);
   if (scene.rightChar && CHARS[scene.rightChar]) preloadImg(CHARS[scene.rightChar].image);
-  preloadAudio(`${CDN}sounds/${sceneId}${AUDIO_EXT[sceneId] || '.MP3'}`);
+  preloadAudioById(sceneId);
   if (scene.options) {
     scene.options.forEach(opt => {
       const next = SCENES[opt.nextScene];
@@ -1051,9 +1080,7 @@ function loadCriticalAssets() {
   Object.values(BG).forEach(url => preloadImg(url));
 
   const criticalScenes = ['opening1', 'opening2', 'crossroads0', 'crossroads1', 'crossroads'];
-  criticalScenes.forEach(id => {
-    preloadAudio(`${CDN}sounds/${id}${AUDIO_EXT[id] || '.MP3'}`);
-  });
+  criticalScenes.forEach(id => preloadAudioById(id));
 
   return Promise.all(_loadingPromises);
 }
@@ -1062,7 +1089,7 @@ function loadRemainingAssets() {
   const criticalScenes = new Set(['opening1', 'opening2', 'crossroads0', 'crossroads1', 'crossroads']);
   Object.keys(SCENES).forEach(id => {
     if (id !== 'history' && !criticalScenes.has(id)) {
-      preloadAudio(`${CDN}sounds/${id}${AUDIO_EXT[id] || '.MP3'}`);
+      preloadAudioById(id);
     }
   });
   return Promise.all(_loadingPromises);
@@ -1072,50 +1099,61 @@ function loadRemainingAssets() {
  * 4. 音频
  * ================================================================ */
 
-// wind 用 .mp3，名人配音用 .MP3
+// wind 用 .mp3，其余音频用 .MP3
 const AUDIO_EXT = { wind: '.mp3' };
 
 function stopAudio() {
   if (!state.audio) return;
-  state.audio.pause();
-  state.audio.currentTime = 0;
+  const audio = state.audio;
+  try {
+    audio.pause();
+    audio.currentTime = 0;
+  } catch (e) {}
+  audio.onended = null;
+  audio.onerror = null;
   state.audio = null;
 }
 
+/**
+ * 播放一句台词。从缓存池取 Audio，不再 new。
+ * 若音频已就绪，直接播；否则等 canplay 事件，去掉 setTimeout 兜底。
+ */
 function playAudio(id, onEnd) {
   stopAudio();
-  const ext = AUDIO_EXT[id] || '.MP3';
-  const audio = new Audio(`${CDN}sounds/${id}${ext}`);
-  audio.preload = 'auto';
+  const audio = acquireAudio(id);
 
   const finish = () => {
     if (state.audio === audio) state.audio = null;
     if (onEnd) onEnd();
   };
 
+  audio.onended = finish;
   audio.onerror = () => {
-    console.log(`音频不存在: ${CDN}sounds/${id}${ext}`);
+    console.log('音频加载/播放出错:', id);
     finish();
   };
-  audio.onended = finish;
 
-  const playWhenReady = () => {
-    audio.play().catch(err => {
-      console.log('音频播放失败:', err);
-      finish();
-    });
+  try { audio.currentTime = 0; } catch (e) {}
+
+  state.audio = audio;
+
+  const tryPlay = () => {
+    // 防止 stopAudio 之后迟到的回调
+    if (state.audio !== audio) return;
+    const p = audio.play();
+    if (p && p.catch) {
+      p.catch(err => {
+        console.log('播放失败:', id, err);
+        finish();
+      });
+    }
   };
 
   if (audio.readyState >= 3) {
-    playWhenReady();
+    tryPlay();
   } else {
-    audio.addEventListener('canplay', playWhenReady, { once: true });
-    setTimeout(() => {
-      if (state.audio === audio) playWhenReady();
-    }, 500);
+    audio.addEventListener('canplay', tryPlay, { once: true });
   }
-
-  state.audio = audio;
 }
 
 /* ================================================================
