@@ -1046,11 +1046,22 @@ function preloadAhead(sceneId, depth = 2) {
   });
 }
 
-function loadAllAssets() {
+function loadCriticalAssets() {
   Object.values(CHARS).forEach(c => preloadImg(c.image));
   Object.values(BG).forEach(url => preloadImg(url));
+
+  const criticalScenes = ['opening1', 'opening2', 'crossroads0', 'crossroads1', 'crossroads'];
+  criticalScenes.forEach(id => {
+    preloadAudio(`${CDN}sounds/${id}${AUDIO_EXT[id] || '.MP3'}`);
+  });
+
+  return Promise.all(_loadingPromises);
+}
+
+function loadRemainingAssets() {
+  const criticalScenes = new Set(['opening1', 'opening2', 'crossroads0', 'crossroads1', 'crossroads']);
   Object.keys(SCENES).forEach(id => {
-    if (id !== 'history') {
+    if (id !== 'history' && !criticalScenes.has(id)) {
       preloadAudio(`${CDN}sounds/${id}${AUDIO_EXT[id] || '.MP3'}`);
     }
   });
@@ -1495,7 +1506,7 @@ function bindEvents() {
 window.addEventListener('load', () => {
   bindEvents();
 
-  loadAllAssets().then(() => {
+  loadCriticalAssets().then(() => {
     const loadingScreen = document.getElementById('loadingScreen');
     if (loadingScreen) {
       loadingScreen.classList.add('fade-out');
@@ -1503,6 +1514,8 @@ window.addEventListener('load', () => {
     }
     dom.cover.style.display = 'flex';
     dom.cover.classList.remove('fade-out');
+
+    loadRemainingAssets();
   });
 
   dom.bgWind.load();
