@@ -7,8 +7,12 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/style.css">
-<link rel="preload" as="image" href="https://cdn.jsdelivr.net/gh/iriida/iriida.github.io@main/chibi/images/fire.jpg" crossorigin>
-<link rel="preload" as="image" href="https://cdn.jsdelivr.net/gh/iriida/iriida.github.io@main/chibi/images/crossroads.jpg" crossorigin>
+<link rel="preload" as="image" href="images/fire.jpg">
+<link rel="preload" as="image" href="images/crossroads.jpg">
+<link rel="prefetch" href="sounds/opening1.MP3">
+<link rel="prefetch" href="sounds/opening2.MP3">
+<link rel="prefetch" href="sounds/crossroads.MP3">
+<link rel="prefetch" href="sounds/wind.mp3">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/style.css">
 <style>
 /* ========== 基础 ========== */
@@ -457,10 +461,69 @@ h1 {
   .character-left, .character-right { width: 150px; }
   .char-name { padding: .2rem 1rem; font-size: .9rem; }
 }
+
+/* ========== 加载界面 ========== */
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2f2923 linear-gradient(145deg, #4a4036 0%, #2f2923 100%);
+  transition: opacity .5s ease;
+}
+.loading-screen.fade-out { opacity: 0; pointer-events: none; }
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 80%;
+  max-width: 400px;
+}
+.loading-title {
+  margin-bottom: 2rem;
+  font-family: "标小篆", "LXGW WenKai", serif;
+  font-size: 2.5rem;
+  letter-spacing: 6px;
+  color: #f0e5d2;
+  text-shadow: 2px 2px 0 #5e4a33;
+}
+.loading-bar-wrap {
+  width: 100%;
+  height: 8px;
+  border: 1px solid #b59d7a;
+  border-radius: 4px;
+  background: rgba(240, 229, 210, .1);
+  overflow: hidden;
+}
+.loading-bar {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #b59d7a, #d4bc9a);
+  border-radius: 4px;
+  transition: width .3s ease;
+}
+.loading-text {
+  margin-top: 1rem;
+  color: #b59d7a;
+  font-size: .9rem;
+  letter-spacing: 2px;
+}
 </style>
 </head>
 
 <body>
+<div class="loading-screen" id="loadingScreen">
+  <div class="loading-content">
+    <div class="loading-title">故纸舟·赤壁</div>
+    <div class="loading-bar-wrap">
+      <div class="loading-bar" id="loadingBar"></div>
+    </div>
+    <div class="loading-text" id="loadingText">正在加载资源...</div>
+  </div>
+</div>
+
 <div class="game-container" id="gameContainer">
   <div class="mask"></div>
 
@@ -476,7 +539,7 @@ h1 {
 
   <!-- 背景音 -->
   <audio id="bgWind" loop preload="auto" style="display:none">
-    <source src="https://cdn.jsdelivr.net/gh/iriida/iriida.github.io@main/chibi/sounds/wind.mp3" type="audio/mpeg">
+    <source src="sounds/wind.mp3" type="audio/mpeg">
   </audio>
 
   <!-- 浮窗 -->
@@ -530,7 +593,9 @@ h1 {
  * 1. 数据层
  * ================================================================ */
 
-const CDN = 'https://cdn.jsdelivr.net/gh/iriida/iriida.github.io@main/chibi/';
+const CDN = (location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? ''
+  : 'https://cdn.jsdelivr.net/gh/iriida/iriida.github.io@main/chibi/';
 
 const FIGURES = {
   liubei: {
@@ -906,20 +971,52 @@ const state = {
  * ================================================================ */
 
 const _preloaded = new Set();
+const _loadingPromises = [];
+let _totalAssets = 0;
+let _loadedAssets = 0;
 
 function preloadImg(url) {
-  if (!url || _preloaded.has(url)) return;
+  if (!url || _preloaded.has(url)) return Promise.resolve();
   _preloaded.add(url);
-  const img = new Image();
-  img.src = url;
+  _totalAssets++;
+  const p = new Promise(resolve => {
+    const img = new Image();
+    img.onload = img.onerror = () => {
+      _loadedAssets++;
+      updateLoadingProgress();
+      resolve();
+    };
+    img.src = url;
+  });
+  _loadingPromises.push(p);
+  return p;
 }
 
 function preloadAudio(url) {
-  if (!url || _preloaded.has(url)) return;
+  if (!url || _preloaded.has(url)) return Promise.resolve();
   _preloaded.add(url);
-  const a = new Audio();
-  a.preload = 'auto';
-  a.src = url;
+  _totalAssets++;
+  const p = new Promise(resolve => {
+    const a = new Audio();
+    a.preload = 'auto';
+    a.oncanplaythrough = a.onerror = () => {
+      _loadedAssets++;
+      updateLoadingProgress();
+      resolve();
+    };
+    a.src = url;
+    a.load();
+  });
+  _loadingPromises.push(p);
+  return p;
+}
+
+function updateLoadingProgress() {
+  const pct = _totalAssets > 0 ? Math.round((_loadedAssets / _totalAssets) * 100) : 0;
+  const bar = document.getElementById('loadingBar');
+  const text = document.getElementById('loadingText');
+  if (bar) bar.style.width = pct + '%';
+  if (text) text.textContent = `正在加载资源... ${pct}%`;
 }
 
 function preloadScene(sceneId) {
@@ -942,6 +1039,15 @@ function preloadAhead(sceneId) {
   const scene = SCENES[sceneId];
   if (!scene || !scene.options) return;
   scene.options.forEach(opt => preloadScene(opt.nextScene));
+}
+
+function loadAllAssets() {
+  Object.values(CHARS).forEach(c => preloadImg(c.image));
+  Object.values(BG).forEach(url => preloadImg(url));
+  Object.keys(SCENES).forEach(id => {
+    preloadAudio(`${CDN}sounds/${id}${AUDIO_EXT[id] || '.MP3'}`);
+  });
+  return Promise.all(_loadingPromises);
 }
 
 /* ================================================================
@@ -1368,15 +1474,25 @@ function bindEvents() {
 }
 
 window.addEventListener('load', () => {
-  dom.cover.style.display = 'flex';
-  dom.cover.classList.remove('fade-out');
-  dom.bgWind.load();
   bindEvents();
 
-  Object.values(CHARS).forEach(c => preloadImg(c.image));
-  preloadAhead('opening1');
-  preloadAhead('opening2');
-  preloadAhead('crossroads');
+  loadAllAssets().then(() => {
+    const loadingScreen = document.getElementById('loadingScreen');
+    if (loadingScreen) {
+      loadingScreen.classList.add('fade-out');
+      setTimeout(() => loadingScreen.style.display = 'none', 500);
+    }
+    dom.cover.style.display = 'flex';
+    dom.cover.classList.remove('fade-out');
+  });
+
+  dom.bgWind.load();
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(err => {
+      console.log('SW注册失败:', err);
+    });
+  }
 });
 </script>
 </body>
