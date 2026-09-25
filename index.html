@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
 <title>故纸舟·赤壁</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+<link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/style.css">
+<link rel="preload" as="image" href="https://cdn.jsdelivr.net/gh/iriida/iriida.github.io@main/chibi/images/fire.jpg" crossorigin>
+<link rel="preload" as="image" href="https://cdn.jsdelivr.net/gh/iriida/iriida.github.io@main/chibi/images/crossroads.jpg" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/style.css">
 <style>
 /* ========== 基础 ========== */
@@ -471,7 +476,7 @@ h1 {
 
   <!-- 背景音 -->
   <audio id="bgWind" loop preload="auto" style="display:none">
-    <source src="sounds/wind.mp3" type="audio/mpeg">
+    <source src="https://cdn.jsdelivr.net/gh/iriida/iriida.github.io@main/chibi/sounds/wind.mp3" type="audio/mpeg">
   </audio>
 
   <!-- 浮窗 -->
@@ -524,6 +529,8 @@ h1 {
 /* ================================================================
  * 1. 数据层
  * ================================================================ */
+
+const CDN = 'https://cdn.jsdelivr.net/gh/iriida/iriida.github.io@main/chibi/';
 
 const FIGURES = {
   liubei: {
@@ -581,30 +588,30 @@ const FIGURES = {
 
 // 立绘 URL 集中管理
 const CHARS = {
-  awang: { name: '阿望', image: 'images/awang.png' },
-  agua:  { name: '阿瓜', image: 'images/agua.png' }
+  awang: { name: '阿望', image: CDN + 'images/awang.png' },
+  agua:  { name: '阿瓜', image: CDN + 'images/agua.png' }
 };
 
 const BG = {
-  fire:       'images/fire.jpg',
-  crossroads: 'images/crossroads.jpg',
-  northCamp:  'images/north_camp.jpg',
-  caocao:     'images/caocao.jpg',
-  preBattle:  'images/pre_battle.jpg',
-  preBattle1: 'images/pre_battle1.jpg',
-  defeat:     'images/defeat.jpg',
-  morning:    'images/morning.jpg',
-  river:      'images/river.jpg',
-  escape:     'images/escape.jpg',
-  southCamp:  'images/south_camp.jpg',
-  zhouyu:     'images/zhouyu.jpg',
-  zhuge:      'images/zhuge.jpg',
-  victory:    'images/victory.jpg',
-  cleanup:    'images/cleanup.jpg',
-  cleanup1:   'images/cleanup1.jpg',
-  riverside:  'images/riverside.jpg',
-  northRuins: 'images/north_ruins.jpg',
-  teahouse:   'images/teahouse.jpg'
+  fire:       CDN + 'images/fire.jpg',
+  crossroads: CDN + 'images/crossroads.jpg',
+  northCamp:  CDN + 'images/north_camp.jpg',
+  caocao:     CDN + 'images/caocao.jpg',
+  preBattle:  CDN + 'images/pre_battle.jpg',
+  preBattle1: CDN + 'images/pre_battle1.jpg',
+  defeat:     CDN + 'images/defeat.jpg',
+  morning:    CDN + 'images/morning.jpg',
+  river:      CDN + 'images/river.jpg',
+  escape:     CDN + 'images/escape.jpg',
+  southCamp:  CDN + 'images/south_camp.jpg',
+  zhouyu:     CDN + 'images/zhouyu.jpg',
+  zhuge:      CDN + 'images/zhuge.jpg',
+  victory:    CDN + 'images/victory.jpg',
+  cleanup:    CDN + 'images/cleanup.jpg',
+  cleanup1:   CDN + 'images/cleanup1.jpg',
+  riverside:  CDN + 'images/riverside.jpg',
+  northRuins: CDN + 'images/north_ruins.jpg',
+  teahouse:   CDN + 'images/teahouse.jpg'
 };
 
 const SCENES = {
@@ -895,6 +902,49 @@ const state = {
 };
 
 /* ================================================================
+ * 3.5 资源预加载
+ * ================================================================ */
+
+const _preloaded = new Set();
+
+function preloadImg(url) {
+  if (!url || _preloaded.has(url)) return;
+  _preloaded.add(url);
+  const img = new Image();
+  img.src = url;
+}
+
+function preloadAudio(url) {
+  if (!url || _preloaded.has(url)) return;
+  _preloaded.add(url);
+  const a = new Audio();
+  a.preload = 'auto';
+  a.src = url;
+}
+
+function preloadScene(sceneId) {
+  const scene = SCENES[sceneId];
+  if (!scene) return;
+  if (scene.bg) preloadImg(scene.bg);
+  if (scene.leftChar && CHARS[scene.leftChar]) preloadImg(CHARS[scene.leftChar].image);
+  if (scene.rightChar && CHARS[scene.rightChar]) preloadImg(CHARS[scene.rightChar].image);
+  preloadAudio(`${CDN}sounds/${sceneId}${AUDIO_EXT[sceneId] || '.MP3'}`);
+  if (scene.options) {
+    scene.options.forEach(opt => {
+      const next = SCENES[opt.nextScene];
+      if (next && next.bg) preloadImg(next.bg);
+    });
+  }
+}
+
+function preloadAhead(sceneId) {
+  preloadScene(sceneId);
+  const scene = SCENES[sceneId];
+  if (!scene || !scene.options) return;
+  scene.options.forEach(opt => preloadScene(opt.nextScene));
+}
+
+/* ================================================================
  * 4. 音频
  * ================================================================ */
 
@@ -911,7 +961,7 @@ function stopAudio() {
 function playAudio(id, onEnd) {
   stopAudio();
   const ext = AUDIO_EXT[id] || '.MP3';
-  const audio = new Audio(`sounds/${id}${ext}`);
+  const audio = new Audio(`${CDN}sounds/${id}${ext}`);
   audio.preload = 'auto';
 
   const finish = () => {
@@ -920,7 +970,7 @@ function playAudio(id, onEnd) {
   };
 
   audio.onerror = () => {
-    console.log(`音频不存在: sounds/${id}${ext}`);
+    console.log(`音频不存在: ${CDN}sounds/${id}${ext}`);
     finish();
   };
   audio.onended = finish;
@@ -1164,6 +1214,8 @@ function displayScene(sceneId) {
   const scene = SCENES[sceneId];
   if (!scene) return;
 
+  preloadAhead(sceneId);
+
   state.sceneId = sceneId;
   stopAudio();
   stopTyping();
@@ -1320,6 +1372,11 @@ window.addEventListener('load', () => {
   dom.cover.classList.remove('fade-out');
   dom.bgWind.load();
   bindEvents();
+
+  Object.values(CHARS).forEach(c => preloadImg(c.image));
+  preloadAhead('opening1');
+  preloadAhead('opening2');
+  preloadAhead('crossroads');
 });
 </script>
 </body>
