@@ -1043,7 +1043,9 @@ function loadAllAssets() {
   Object.values(CHARS).forEach(c => preloadImg(c.image));
   Object.values(BG).forEach(url => preloadImg(url));
   Object.keys(SCENES).forEach(id => {
-    preloadAudio(`${CDN}sounds/${id}${AUDIO_EXT[id] || '.MP3'}`);
+    if (id !== 'history') {
+      preloadAudio(`${CDN}sounds/${id}${AUDIO_EXT[id] || '.MP3'}`);
+    }
   });
   return Promise.all(_loadingPromises);
 }
