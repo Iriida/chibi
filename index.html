@@ -520,7 +520,7 @@ h1 {
     <div class="loading-bar-wrap">
       <div class="loading-bar" id="loadingBar"></div>
     </div>
-    <div class="loading-text" id="loadingText">正在加载资源...</div>
+    <div class="loading-text" id="loadingText">江畔解缆，船家正备</div>
   </div>
 </div>
 
@@ -593,7 +593,7 @@ h1 {
  * 1. 数据层
  * ================================================================ */
 
-const CDN = 'https://cdn.jsdelivr.net/gh/iriida/chibi@main/';  // 如需走 jsDelivr，填入 'https://cdn.jsdelivr.net/gh/用户名/仓库名@main/'
+const CDN = 'https://cdn.jsdelivr.net/gh/iriida/chibi@main/';  // 如需走 jsDelivr：'https://cdn.jsdelivr.net/gh/用户名/仓库名@main/'
 
 const FIGURES = {
   liubei: {
@@ -706,7 +706,6 @@ const SCENES = {
       { text: '【北行线】往北走，进曹营活命', nextScene: 'north_intro' },
       { text: '【南行线】往南追，加入刘备的队伍', nextScene: 'south_intro' }
     ],
-    // 该场景会弹出刘备、曹操两张卡片
     popups: ['liubei', 'caocao'],
     bg: BG.crossroads
   },
@@ -967,18 +966,15 @@ const state = {
 /* ================================================================
  * 3.5 资源预加载 + 音频缓存池
  * ================================================================
- * 核心思路：
- *   - 预加载和播放共用同一个 Audio 对象（audioCache）
- *   - 播放时从缓存池取，不再 new Audio()，避免重新加载和解码
- *   - 第一次加载时把关键资源全部拉下来，之后切场景几乎瞬发
+ * 修复要点：
+ *   1. 加载前先 collectCriticalAssets() 统计总数，立即显示 "0 / N"
+ *   2. 并发限制为 4，每个资源完成时进度都推进，条子平滑
+ *   3. 用"已加载 / 总数"取代百分比，避免总数变化时跳变
+ *   4. 剩余资源后台静默加载，不动进度条
+ *   5. 音频预加载和播放共用 audioCache，不再各自 new
+ *   6. 加载文案分阶段变化，贴合渡江叙事
  * ================================================================ */
 
-const _preloaded = new Set();
-const _loadingPromises = [];
-let _totalAssets = 0;
-let _loadedAssets = 0;
-
-/* 音频缓存池：id → HTMLAudioElement */
 const audioCache = new Map();
 
 function getAudioUrl(id) {
@@ -997,53 +993,160 @@ function acquireAudio(id) {
   return audio;
 }
 
-/* ---------- 图片预加载 ---------- */
-function preloadImg(url) {
-  if (!url || _preloaded.has(url)) return Promise.resolve();
-  _preloaded.add(url);
-  _totalAssets++;
-  const p = new Promise(resolve => {
-    const img = new Image();
-    img.onload = img.onerror = () => {
-      _loadedAssets++;
-      updateLoadingProgress();
-      resolve();
-    };
-    img.src = url;
-  });
-  _loadingPromises.push(p);
-  return p;
-}
+/* ---------- 进度显示 ---------- */
+let _loadingTotal = 0;
+let _loadingDone = 0;
 
-/* ---------- 音频预加载（按 id，复用缓存池） ---------- */
-function preloadAudioById(id) {
-  const key = 'audio:' + id;
-  if (_preloaded.has(key)) return Promise.resolve();
-  _preloaded.add(key);
-  _totalAssets++;
+const LOADING_LABELS = [
+  { min: 0,    text: '江畔解缆，船家正备' },
+  { min: 0.25, text: '船夫松开缆绳，江风涌入帆' },
+  { min: 0.5,  text: '桨划过水面，涟漪一圈圈散开' },
+  { min: 0.75, text: '两岸山影，从雾里浮出来' },
+  { min: 0.95, text: '渡口依稀，江声渐近' }
+];
 
-  const audio = acquireAudio(id);
-
-  const p = new Promise(resolve => {
-    const done = () => {
-      _loadedAssets++;
-      updateLoadingProgress();
-      resolve();
-    };
-    if (audio.readyState >= 4) { done(); return; }
-    audio.addEventListener('canplaythrough', done, { once: true });
-    audio.addEventListener('error', done, { once: true });
-  });
-  _loadingPromises.push(p);
-  return p;
+function getLoadingLabel(done, total) {
+  if (total === 0) return LOADING_LABELS[0].text;
+  if (done >= total) return '可以登舟了';
+  const pct = done / total;
+  let label = LOADING_LABELS[0].text;
+  for (const item of LOADING_LABELS) {
+    if (pct >= item.min) label = item.text;
+  }
+  return label;
 }
 
 function updateLoadingProgress() {
-  const pct = _totalAssets > 0 ? Math.round((_loadedAssets / _totalAssets) * 100) : 0;
+  const pct = _loadingTotal > 0 ? Math.round((_loadingDone / _loadingTotal) * 100) : 0;
   const bar = document.getElementById('loadingBar');
   const text = document.getElementById('loadingText');
   if (bar) bar.style.width = pct + '%';
-  if (text) text.textContent = `正在加载资源... ${pct}%`;
+  if (text) {
+    const label = getLoadingLabel(_loadingDone, _loadingTotal);
+    text.textContent = _loadingTotal > 0
+      ? `${label}　${_loadingDone} / ${_loadingTotal}`
+      : label;
+  }
+}
+
+/* ---------- 单个资源加载 ---------- */
+function loadOneAsset(item) {
+  return new Promise(resolve => {
+    if (item.type === 'img') {
+      const img = new Image();
+      img.onload = img.onerror = () => resolve();
+      img.src = item.url;
+    } else {
+      const audio = acquireAudio(item.id);
+      if (audio.readyState >= 4) { resolve(); return; }
+      const done = () => resolve();
+      audio.addEventListener('canplaythrough', done, { once: true });
+      audio.addEventListener('error', done, { once: true });
+    }
+  });
+}
+
+/* ---------- 限制并发的队列加载 ---------- */
+function loadQueue(items, concurrency, onProgress) {
+  return new Promise(resolve => {
+    let index = 0;
+    let active = 0;
+    let done = 0;
+    const total = items.length;
+
+    if (total === 0) { resolve(); return; }
+
+    function next() {
+      if (done >= total) { resolve(); return; }
+      while (active < concurrency && index < total) {
+        const item = items[index++];
+        active++;
+        loadOneAsset(item).then(() => {
+          active--;
+          done++;
+          if (onProgress) onProgress(done, total);
+          next();
+        });
+      }
+    }
+    next();
+  });
+}
+
+/* ---------- 收集资源清单 ---------- */
+function collectCriticalAssets() {
+  const list = [];
+  const seen = new Set();
+
+  // 立绘
+  Object.values(CHARS).forEach(c => {
+    if (c.image && !seen.has(c.image)) {
+      seen.add(c.image);
+      list.push({ type: 'img', url: c.image });
+    }
+  });
+
+  // 所有背景（去重）
+  Object.values(BG).forEach(url => {
+    if (url && !seen.has(url)) {
+      seen.add(url);
+      list.push({ type: 'img', url });
+    }
+  });
+
+  // 关键音频
+  const criticalScenes = ['opening1', 'opening2', 'crossroads0', 'crossroads1', 'crossroads'];
+  criticalScenes.forEach(id => {
+    if (!seen.has('audio:' + id)) {
+      seen.add('audio:' + id);
+      list.push({ type: 'audio', id });
+    }
+  });
+
+  return list;
+}
+
+function collectRemainingAssets() {
+  const criticalSet = new Set(['opening1', 'opening2', 'crossroads0', 'crossroads1', 'crossroads']);
+  const list = [];
+  Object.keys(SCENES).forEach(id => {
+    if (id !== 'history' && !criticalSet.has(id)) {
+      list.push({ type: 'audio', id });
+    }
+  });
+  return list;
+}
+
+function loadCriticalAssets() {
+  const items = collectCriticalAssets();
+  _loadingTotal = items.length;
+  _loadingDone = 0;
+  updateLoadingProgress();
+
+  return loadQueue(items, 4, (done, total) => {
+    _loadingDone = done;
+    _loadingTotal = total;
+    updateLoadingProgress();
+  });
+}
+
+function loadRemainingAssets() {
+  const items = collectRemainingAssets();
+  if (!items.length) return Promise.resolve();
+  return loadQueue(items, 2, null);
+}
+
+/* ---------- 运行时按需预加载 ---------- */
+const _imgPreloaded = new Set();
+
+function preloadImg(url) {
+  if (!url || _imgPreloaded.has(url)) return Promise.resolve();
+  _imgPreloaded.add(url);
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = img.onerror = () => resolve();
+    img.src = url;
+  });
 }
 
 function preloadScene(sceneId) {
@@ -1052,13 +1155,7 @@ function preloadScene(sceneId) {
   if (scene.bg) preloadImg(scene.bg);
   if (scene.leftChar && CHARS[scene.leftChar]) preloadImg(CHARS[scene.leftChar].image);
   if (scene.rightChar && CHARS[scene.rightChar]) preloadImg(CHARS[scene.rightChar].image);
-  preloadAudioById(sceneId);
-  if (scene.options) {
-    scene.options.forEach(opt => {
-      const next = SCENES[opt.nextScene];
-      if (next && next.bg) preloadImg(next.bg);
-    });
-  }
+  acquireAudio(sceneId);
 }
 
 function preloadAhead(sceneId, depth = 2) {
@@ -1073,26 +1170,6 @@ function preloadAhead(sceneId, depth = 2) {
       nextScene.options.forEach(opt2 => preloadScene(opt2.nextScene));
     }
   });
-}
-
-function loadCriticalAssets() {
-  Object.values(CHARS).forEach(c => preloadImg(c.image));
-  Object.values(BG).forEach(url => preloadImg(url));
-
-  const criticalScenes = ['opening1', 'opening2', 'crossroads0', 'crossroads1', 'crossroads'];
-  criticalScenes.forEach(id => preloadAudioById(id));
-
-  return Promise.all(_loadingPromises);
-}
-
-function loadRemainingAssets() {
-  const criticalScenes = new Set(['opening1', 'opening2', 'crossroads0', 'crossroads1', 'crossroads']);
-  Object.keys(SCENES).forEach(id => {
-    if (id !== 'history' && !criticalScenes.has(id)) {
-      preloadAudioById(id);
-    }
-  });
-  return Promise.all(_loadingPromises);
 }
 
 /* ================================================================
@@ -1138,7 +1215,6 @@ function playAudio(id, onEnd) {
   state.audio = audio;
 
   const tryPlay = () => {
-    // 防止 stopAudio 之后迟到的回调
     if (state.audio !== audio) return;
     const p = audio.play();
     if (p && p.catch) {
@@ -1203,9 +1279,6 @@ function finishTyping() {
  * 6. 浮窗
  * ================================================================ */
 
-/**
- * 依次展示浮窗；全部关闭后执行 done 回调。
- */
 function showPopups(items, done) {
   if (!items.length) { done && done(); return; }
 
@@ -1259,7 +1332,6 @@ function showPopups(items, done) {
     if (e.target === dom.popupOverlay) close();
   };
 
-  // 配音播完自动关闭
   playAudio(key, close);
 }
 
@@ -1306,7 +1378,6 @@ function updateCharacters(leftKey, rightKey) {
   setSide('right', rightKey);
 }
 
-/** 把文本拆成段落 */
 function splitText(text) {
   const paragraphs = text.split(/\n\s*\n/).filter(p => p.trim() !== '');
   const html = paragraphs
@@ -1319,7 +1390,6 @@ function splitText(text) {
  * 8. 场景渲染
  * ================================================================ */
 
-/** 自动播放：单选项场景读完自动推进 */
 function maybeAutoContinue(scene) {
   if (!state.autoPlay) return;
   if (!scene.options || scene.options.length !== 1) return;
@@ -1328,7 +1398,6 @@ function maybeAutoContinue(scene) {
   }, 500);
 }
 
-/** 渲染选项按钮组 */
 function renderOptions(scene) {
   dom.options.innerHTML = '';
   dom.continueBtn.classList.add('hidden');
@@ -1355,10 +1424,8 @@ function renderOptions(scene) {
   }
 }
 
-/** 史书页 */
 function showHistory(scene) {
   stopAudio();
-  // 隐藏主界面
   [dom.mask, dom.topSection, dom.midSection, dom.bottomDialog,
    dom.footer, dom.charLeft, dom.charRight].forEach(el => el.style.display = 'none');
 
@@ -1383,7 +1450,6 @@ function hideHistory() {
   dom.footer.style.display = 'flex';
 }
 
-/** 主入口 */
 function displayScene(sceneId) {
   const scene = SCENES[sceneId];
   if (!scene) return;
@@ -1394,18 +1460,15 @@ function displayScene(sceneId) {
   stopAudio();
   stopTyping();
 
-  // 史书页
   if (scene.isHistory) {
     showHistory(scene);
     return;
   }
   hideHistory();
 
-  // 清浮窗
   dom.popupOverlay.classList.remove('active');
   dom.popupOverlay.innerHTML = '';
 
-  // 背景
   if (scene.bg) {
     dom.container.style.backgroundImage = `url('${scene.bg}')`;
     dom.container.style.backgroundColor = 'transparent';
@@ -1414,14 +1477,11 @@ function displayScene(sceneId) {
     dom.container.style.backgroundColor = '#f8f0e2';
   }
 
-  // 章节标题
   updateChapterTag(sceneId);
 
-  // 立绘
   updateCharacters(scene.leftChar, scene.rightChar);
   setTimeout(alignCharacters, 10);
 
-  // 正文（ending2 追加路线专属文字）
   let mainText = scene.text;
   if (sceneId === 'ending2') {
     if (state.route === 'north') {
@@ -1440,37 +1500,30 @@ function displayScene(sceneId) {
     return p;
   });
 
-  // 收集浮窗（crossroads 特殊处理）
   const popups = sceneId === 'crossroads'
     ? ['liubei', 'caocao']
     : scene.popup
       ? (Array.isArray(scene.popup) ? scene.popup : [scene.popup])
       : [];
 
-  // 场景音频
   playAudio(sceneId, () => maybeAutoContinue(scene));
 
-  // 打字机
   typeText(elements, paragraphs, 30, () => {
     if (popups.length) {
       showPopups(popups.slice(), () => {
-        // 全部浮窗关闭后播放场景音频（若尚未播放则再补一次）
         playAudio(sceneId, () => maybeAutoContinue(scene));
       });
     }
   });
 
-  // 选项区（浮窗打开时会立即被覆盖）
   renderOptions(scene);
   if (popups.length) {
-    // 稍等一拍，让打字机先把第一段显示出来再弹浮窗
     setTimeout(() => showPopups(popups.slice(), () => {
       playAudio(sceneId, () => maybeAutoContinue(scene));
     }), 400);
   }
 }
 
-/** 更新章节标题，并记录当前路线 */
 function updateChapterTag(sceneId) {
   if (sceneId.startsWith('north')) {
     state.route = 'north';
@@ -1543,6 +1596,10 @@ function bindEvents() {
 
 window.addEventListener('load', () => {
   bindEvents();
+
+  _loadingTotal = 0;
+  _loadingDone = 0;
+  updateLoadingProgress();
 
   loadCriticalAssets().then(() => {
     const loadingScreen = document.getElementById('loadingScreen');
