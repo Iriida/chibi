@@ -6,14 +6,14 @@
 <title>故纸舟·赤壁</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
-<link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/style.css">
+<link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/lxgwwenkai-regular.css">
 <link rel="preload" as="image" href="images/fire.jpg">
 <link rel="preload" as="image" href="images/crossroads.jpg">
 <link rel="prefetch" href="sounds/opening1.MP3">
 <link rel="prefetch" href="sounds/opening2.MP3">
 <link rel="prefetch" href="sounds/crossroads.MP3">
 <link rel="prefetch" href="sounds/wind.mp3">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/lxgwwenkai-regular.css">
 <style>
 /* ========== 基础 ========== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1032,11 +1032,18 @@ function preloadScene(sceneId) {
   }
 }
 
-function preloadAhead(sceneId) {
+function preloadAhead(sceneId, depth = 2) {
   preloadScene(sceneId);
+  if (depth <= 0) return;
   const scene = SCENES[sceneId];
   if (!scene || !scene.options) return;
-  scene.options.forEach(opt => preloadScene(opt.nextScene));
+  scene.options.forEach(opt => {
+    preloadScene(opt.nextScene);
+    const nextScene = SCENES[opt.nextScene];
+    if (nextScene && nextScene.options) {
+      nextScene.options.forEach(opt2 => preloadScene(opt2.nextScene));
+    }
+  });
 }
 
 function loadAllAssets() {
@@ -1080,10 +1087,22 @@ function playAudio(id, onEnd) {
     finish();
   };
   audio.onended = finish;
-  audio.play().catch(err => {
-    console.log('音频播放失败:', err);
-    finish();
-  });
+
+  const playWhenReady = () => {
+    audio.play().catch(err => {
+      console.log('音频播放失败:', err);
+      finish();
+    });
+  };
+
+  if (audio.readyState >= 3) {
+    playWhenReady();
+  } else {
+    audio.addEventListener('canplay', playWhenReady, { once: true });
+    setTimeout(() => {
+      if (state.audio === audio) playWhenReady();
+    }, 500);
+  }
 
   state.audio = audio;
 }
