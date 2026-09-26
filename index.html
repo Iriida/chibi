@@ -9,10 +9,10 @@
 <link rel="preload" as="style" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/lxgwwenkai-regular.css">
 <link rel="preload" as="image" href="images/fire.jpg">
 <link rel="preload" as="image" href="images/crossroads.jpg">
-<link rel="prefetch" href="sounds/opening1.MP3">
-<link rel="prefetch" href="sounds/opening2.MP3">
-<link rel="prefetch" href="sounds/crossroads.MP3">
-<link rel="prefetch" href="sounds/wind.mp3">
+<link rel="prefetch" href="sounds/opening1.m4a">
+<link rel="prefetch" href="sounds/opening2.m4a">
+<link rel="prefetch" href="sounds/crossroads.m4a">
+<link rel="prefetch" href="sounds/wind.m4a">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/lxgwwenkai-regular.css">
 <style>
 /* ========== 基础 ========== */
@@ -539,7 +539,7 @@ h1 {
 
   <!-- 背景音 -->
   <audio id="bgWind" loop preload="auto" style="display:none">
-    <source src="sounds/wind.mp3" type="audio/mpeg">
+    <source src="sounds/wind.m4a" type="audio/mp4">
   </audio>
 
   <!-- 浮窗 -->
@@ -978,7 +978,7 @@ const state = {
 const audioCache = new Map();
 
 function getAudioUrl(id) {
-  const ext = AUDIO_EXT[id] || '.MP3';
+  const ext = AUDIO_EXT[id] || '.m4a';
   return `${CDN}sounds/${id}${ext}`;
 }
 
@@ -1123,7 +1123,7 @@ function loadCriticalAssets() {
   _loadingDone = 0;
   updateLoadingProgress();
 
-  return loadQueue(items, 4, (done, total) => {
+  return loadQueue(items, 6, (done, total) => {
     _loadingDone = done;
     _loadingTotal = total;
     updateLoadingProgress();
@@ -1176,8 +1176,8 @@ function preloadAhead(sceneId, depth = 2) {
  * 4. 音频
  * ================================================================ */
 
-// wind 用 .mp3，其余音频用 .MP3
-const AUDIO_EXT = { wind: '.mp3' };
+// wind 与其他音频统一使用 .m4a
+const AUDIO_EXT = {};
 
 function stopAudio() {
   if (!state.audio) return;
