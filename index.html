@@ -1016,32 +1016,49 @@ function getLoadingLabel(done, total) {
   return label;
 }
 
-function updateLoadingProgress() {
-  const pct = _loadingTotal > 0 ? Math.round((_loadingDone / _loadingTotal) * 100) : 0;
+function updateLoadingProgress(doneVal) {
+  const pct = _loadingTotal > 0 ? Math.round((doneVal / _loadingTotal) * 100) : 0;
   const bar = document.getElementById('loadingBar');
   const text = document.getElementById('loadingText');
   if (bar) bar.style.width = pct + '%';
   if (text) {
-    const label = getLoadingLabel(_loadingDone, _loadingTotal);
+    const doneInt = Math.floor(doneVal);
+    const label = getLoadingLabel(doneInt, _loadingTotal);
     text.textContent = _loadingTotal > 0
-      ? `${label}　${_loadingDone} / ${_loadingTotal}`
+      ? `${label}　${doneInt} / ${_loadingTotal}`
       : label;
   }
 }
 
 /* ---------- 单个资源加载 ---------- */
-function loadOneAsset(item) {
+function loadOneAsset(item, onItemProgress) {
   return new Promise(resolve => {
     if (item.type === 'img') {
       const img = new Image();
-      img.onload = img.onerror = () => resolve();
+      img.onload = img.onerror = () => { if (onItemProgress) onItemProgress(1); resolve(); };
       img.src = item.url;
     } else {
       const audio = acquireAudio(item.id);
-      if (audio.readyState >= 4) { resolve(); return; }
+      if (audio.readyState >= 4) { if (onItemProgress) onItemProgress(1); resolve(); return; }
       const done = () => resolve();
       audio.addEventListener('canplaythrough', done, { once: true });
       audio.addEventListener('error', done, { once: true });
+      if (onItemProgress) {
+        const report = () => {
+          if (audio.buffered.length > 0 && isFinite(audio.duration) && audio.duration > 0) {
+            const end = audio.buffered.end(audio.buffered.length - 1);
+            onItemProgress(Math.min(end / audio.duration, 1));
+          }
+        };
+        const cleanup = () => {
+          audio.removeEventListener('progress', report);
+          audio.removeEventListener('loadedmetadata', report);
+        };
+        audio.addEventListener('progress', report);
+        audio.addEventListener('loadedmetadata', report);
+        audio.addEventListener('canplaythrough', cleanup, { once: true });
+        audio.addEventListener('error', cleanup, { once: true });
+      }
     }
   });
 }
@@ -1053,18 +1070,31 @@ function loadQueue(items, concurrency, onProgress) {
     let active = 0;
     let done = 0;
     const total = items.length;
+    const partial = new Array(total).fill(0);
 
     if (total === 0) { resolve(); return; }
+
+    function report() {
+      if (!onProgress) return;
+      let sum = done;
+      for (let i = 0; i < total; i++) sum += partial[i];
+      onProgress(sum, total);
+    }
 
     function next() {
       if (done >= total) { resolve(); return; }
       while (active < concurrency && index < total) {
-        const item = items[index++];
+        const i = index++;
+        const item = items[i];
         active++;
-        loadOneAsset(item).then(() => {
+        loadOneAsset(item, frac => {
+          partial[i] = Math.min(frac, 1);
+          report();
+        }).then(() => {
+          partial[i] = 0;
           active--;
           done++;
-          if (onProgress) onProgress(done, total);
+          report();
           next();
         });
       }
@@ -1121,12 +1151,12 @@ function loadCriticalAssets() {
   const items = collectCriticalAssets();
   _loadingTotal = items.length;
   _loadingDone = 0;
-  updateLoadingProgress();
+  updateLoadingProgress(0);
 
   return loadQueue(items, 6, (done, total) => {
     _loadingDone = done;
     _loadingTotal = total;
-    updateLoadingProgress();
+    updateLoadingProgress(done);
   });
 }
 
@@ -1599,7 +1629,7 @@ window.addEventListener('load', () => {
 
   _loadingTotal = 0;
   _loadingDone = 0;
-  updateLoadingProgress();
+  updateLoadingProgress(0);
 
   loadCriticalAssets().then(() => {
     const loadingScreen = document.getElementById('loadingScreen');
